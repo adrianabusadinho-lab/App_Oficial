@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Teste Impressão</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f5e6d3; padding: 2rem; }
+        textarea { width: 100%; height: 120px; margin-bottom: 1rem; }
+        button { padding: 0.7rem 1.5rem; background: #a97c50; color: #fff; border: none; border-radius: 6px; font-size: 1.1rem; cursor: pointer; }
+        #msg { margin-top: 1rem; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>Teste de Impressão</h2>
+    <textarea id="texto" placeholder="Digite o texto para imprimir..."></textarea>
+    <br>
+    <button onclick="imprimir()">Imprimir</button>
+    <div id="msg"></div>
+    <script>
+        function imprimir() {
+            const texto = document.getElementById('texto').value;
+            fetch('http://localhost:5001/imprimir', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ texto })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "impresso") {
+                    document.getElementById('msg').innerText = "Pedido enviado para impressão!";
+                } else {
+                    document.getElementById('msg').innerText = "Erro ao imprimir.";
+                }
+            })
+            .catch(() => {
+                document.getElementById('msg').innerText = "Falha na comunicação com o servidor.";
+            });
+        }
+    </script>
+</body>
+</html>

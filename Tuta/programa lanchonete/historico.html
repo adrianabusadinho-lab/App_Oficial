@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Histórico | Lanchonete</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="main.css">
+    <link rel="manifest" href="manifest.json">
+    <style>
+        body { background: #f5e6d3; font-family: 'Montserrat', Arial, sans-serif; font-size: 16px; margin: 0; padding: 0; }
+        main { max-width: 1200px; margin: 2rem auto; background: #fff8f0; border-radius: 18px; box-shadow: 0 8px 32px #a97c5033, 0 2px 8px #a97c5022; padding: 2rem; }
+        .painel-filtros, .relatorio-filtros { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px #a97c5022; padding: 1rem 1.5rem; margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
+        .painel-filtros label, .relatorio-filtros label { font-weight: 700; color: #a97c50; margin-bottom: 0; }
+        .painel-filtros input, .painel-filtros select, .relatorio-filtros input, .relatorio-filtros select { padding: 0.5rem 1rem; border-radius: 8px; border: 1.5px solid #a97c50; font-size: 1rem; background: #f5e6d3; color: #231f20; transition: border 0.2s, box-shadow 0.2s; outline: none; }
+        .painel-filtros input:focus, .painel-filtros select:focus, .relatorio-filtros input:focus, .relatorio-filtros select:focus { border-color: #43ea4c; box-shadow: 0 0 0 2px #43ea4c33; }
+        .painel-filtros button, .relatorio-filtros button { background: #43ea4c; color: #fff; border: none; border-radius: 8px; padding: 0.6rem 1.5rem; font-weight: 700; font-size: 1rem; cursor: pointer; transition: background 0.2s, color 0.2s, box-shadow 0.2s; box-shadow: 0 2px 8px #a97c5022; }
+        .painel-filtros button:hover, .relatorio-filtros button:hover { background: #ffe600; color: #a97c50; }
+        .painel-relatorio { display: flex; flex-wrap: wrap; gap: 2rem; margin-bottom: 2rem; }
+        .relatorio-col { flex: 1; min-width: 260px; background: #f5e6d3; border-radius: 12px; padding: 1.2rem 1.5rem; box-shadow: 0 2px 8px #a97c5022; }
+        .relatorio-col h3 { color: #a97c50; margin-top: 0; }
+        .relatorio-metricas { font-size: 1.1rem; color: #231f20; }
+        .relatorio-metricas strong { color: #a97c50; }
+        .historico-tabela { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+        .historico-tabela th, .historico-tabela td { border-bottom: 1px solid #e0c9b0; padding: 0.4rem 0.6rem; text-align: left; }
+        .historico-tabela th { color: #a97c50; font-size: 1rem; }
+        .historico-tabela td { color: #231f20; font-size: 1rem; }
+        .export-btn { margin-bottom: 1rem; }
+        .painel-graficos { display: flex; gap: 1.5rem; justify-content: space-between; margin-bottom: 2rem; }
+        .grafico-col { background: #fff; border-radius: 10px; box-shadow: 0 2px 8px #a97c5022; padding: 0.7rem 0.7rem 0.2rem 0.7rem; display: flex; flex-direction: column; align-items: stretch; min-width: 180px; }
+        .grafico-col canvas { width: 100% !important; height: 110px !important; }
+        @media (max-width: 900px) {
+            main { padding: 0.5rem; }
+            .painel-relatorio, .painel-graficos { flex-direction: column; gap: 1rem; }
+            .painel-filtros, .relatorio-filtros { flex-direction: column; align-items: stretch; gap: 0.7rem; padding: 0.7rem 0.7rem; }
+            .relatorio-col, .grafico-col { min-width: 0; width: 100%; margin-bottom: 1rem; }
+            .historico-tabela th, .historico-tabela td { font-size: 0.95rem; padding: 0.3rem 0.3rem; }
+        }
+        @media (max-width: 600px) {
+            body { font-size: 14px; }
+            main { padding: 0.2rem; }
+            .painel-relatorio, .painel-graficos { flex-direction: column; gap: 0.5rem; }
+            .relatorio-col, .grafico-col { padding: 0.7rem 0.5rem; border-radius: 8px; min-width: 0; width: 100%; margin-bottom: 0.7rem; }
+            .painel-filtros, .relatorio-filtros { flex-direction: column; gap: 0.5rem; padding: 0.5rem 0.3rem; }
+            .historico-tabela { font-size: 0.9rem; overflow-x: auto; display: block; }
+            .historico-tabela th, .historico-tabela td { padding: 0.2rem 0.2rem; font-size: 0.9rem; }
+            header { padding: 0.7rem 1rem 0.3rem 1rem; }
+            #btn-sair { font-size: 0.95rem; padding: 0.4rem 0.8rem; }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+    </script>
+</head>
+<body>
+    <header>
+        <button id="btn-sair">Sair</button>
+    </header>
+    <main>
+        <h2>Painel do Gestor - Relatórios e Histórico</h2>
+        <div class="painel-relatorio">
+            <!-- Balanço Consolidado -->
+            <div class="relatorio-col">
+                <h3>Balanço Consolidado</h3>
+                <div class="relatorio-filtros">
+                    <label for="balanco-mes">Mês:</label>
+                    <select id="balanco-mes"></select>
+                    <label for="balanco-ano">Ano:</label>
+                    <select id="balanco-ano"></select>
+                    <button onclick="filtrarBalanco()">Ver</button>
+                </div>
+                <div class="relatorio-metricas" id="balanco-consolidado"></div>
+            </div>
+            <!-- Comparativos -->
+            <div class="relatorio-col">
+                <h3>Comparativos</h3>
+                <div class="relatorio-filtros">
+                    <label for="comp-periodo1">De:</label>
+                    <input type="month" id="comp-periodo1">
+                    <label for="comp-periodo2">Para:</label>
+                    <input type="month" id="comp-periodo2">
+                    <button onclick="filtrarComparativo()">Comparar</button>
+                </div>
+                <div class="relatorio-metricas" id="comparativos"></div>
+            </div>
+            <!-- Dia da Semana Mais Forte -->
+            <div class="relatorio-col">
+                <h3>Dia da Semana Mais Forte</h3>
+                <div class="relatorio-filtros">
+                    <label for="diasf-inicio">De:</label>
+                    <input type="date" id="diasf-inicio">
+                    <label for="diasf-fim">Até:</label>
+                    <input type="date" id="diasf-fim">
+                    <button onclick="filtrarDiasFortes()">Ver</button>
+                </div>
+                <div class="relatorio-metricas" id="dias-fortes"></div>
+            </div>
+        </div>
+        <!-- GRÁFICOS -->
+        <div class="painel-graficos">
+            <div class="grafico-col">
+                <div style="font-size:1rem;color:#a97c50;text-align:center;margin-bottom:0.3rem;">Balanço</div>
+                <canvas id="grafico-balanco" height="110"></canvas>
+            </div>
+            <div class="grafico-col">
+                <div style="font-size:1rem;color:#a97c50;text-align:center;margin-bottom:0.3rem;">Comparativo</div>
+                <canvas id="grafico-comparativo" height="110"></canvas>
+            </div>
+            <div class="grafico-col">
+                <div style="font-size:1rem;color:#a97c50;text-align:center;margin-bottom:0.3rem;">Dias da Semana</div>
+                <canvas id="grafico-diasemana" height="110"></canvas>
+            </div>
+        </div>
+        <div class="painel-filtros">
+            <label for="filtro-busca">Busca Rápida:</label>
+            <input type="text" id="filtro-busca" placeholder="Ex: 10/08 14:00, nome, valor...">
+            <button onclick="filtrarHistorico()">Filtrar</button>
+            <button class="export-btn" onclick="exportarCSV()">Exportar Dados</button>
+        </div>
+        <h3>Histórico de Vendas</h3>
+        <div id="lista-historico"></div>
+    </main>
+    <script>
+        document.getElementById('btn-sair').onclick = function() {
+            window.location.href = "inicio.html";
+        };
+
+        let pedidos = [];
+        let saidas = [];
+        let mesesDisponiveis = [];
+        let anosDisponiveis = [];
+
+        // Função para converter data do formato brasileiro para americano
+        function parseDataBR(dataStr) {
+            if (!dataStr) return "";
+            const partes = dataStr.split('/');
+            if (partes.length === 3) {
+                return `${partes[2]}-${partes[1]}-${partes[0]}`;
+            }
+            return dataStr;
+        }
+
+        // Carrega todos os pedidos e saídas
+        function carregarDados(callback) {
+            pedidos = [];
+            saidas = [];
+            mesesDisponiveis = [];
+            anosDisponiveis = [];
+            db.ref('pedidos').once('value').then(snapshot => {
+                snapshot.forEach(child => {
+                    let p = child.val();
+                    p.key = child.key;
+                    pedidos.push(p);
+
+                    // Extrai mês e ano do pedido
+                    if (p.data) {
+                        let d = new Date(parseDataBR(p.data));
+                        let mes = d.getMonth() + 1;
+                        let ano = d.getFullYear();
+                        if (!mesesDisponiveis.includes(mes)) mesesDisponiveis.push(mes);
+                        if (!anosDisponiveis.includes(ano)) anosDisponiveis.push(ano);
+                    }
+                });
+
+                db.ref('historico_caixa').once('value').then(histSnap => {
+                    histSnap.forEach(child => {
+                        let turno = child.val();
+                        (turno.entradas || []).forEach(e => {
+                            e.tipo = e.isExtra ? "Entrada Avulsa" : "Venda";
+                            pedidos.push(e);
+                            if (e.data) {
+                                let d = new Date(parseDataBR(e.data));
+                                let mes = d.getMonth() + 1;
+                                let ano = d.getFullYear();
+                                if (!mesesDisponiveis.includes(mes)) mesesDisponiveis.push(mes);
+                                if (!anosDisponiveis.includes(ano)) anosDisponiveis.push(ano);
+                            }
+                        });
+                        (turno.saidas || []).forEach(s => {
+                            s.tipo = "Saída";
+                            saidas.push(s);
+                            if (s.data) {
+                                let d = new Date(parseDataBR(s.data));
+                                let mes = d.getMonth() + 1;
+                                let ano = d.getFullYear();
+                                if (!mesesDisponiveis.includes(mes)) mesesDisponiveis.push(mes);
+                                if (!anosDisponiveis.includes(ano)) anosDisponiveis.push(ano);
+                            }
+                        });
+                    });
+                    preencherFiltrosMesAno();
+                    if (callback) callback();
+                });
+            });
+        }
+
+        function preencherFiltrosMesAno() {
+            const balancoMes = document.getElementById('balanco-mes');
+            const balancoAno = document.getElementById('balanco-ano');
+            balancoMes.innerHTML = mesesDisponiveis.sort((a,b)=>a-b).map(m => `<option value="${m}">${("0"+m).slice(-2)}</option>`).join("");
+            balancoAno.innerHTML = anosDisponiveis.sort((a,b)=>a-b).map(a => `<option value="${a}">${a}</option>`).join("");
+            let comp1 = document.getElementById('comp-periodo1');
+            let comp2 = document.getElementById('comp-periodo2');
+            let minAno = Math.min(...anosDisponiveis);
+            let maxAno = Math.max(...anosDisponiveis);
+            comp1.min = `${minAno}-01`; comp1.max = `${maxAno}-12`;
+            comp2.min = `${minAno}-01`; comp2.max = `${maxAno}-12`;
+        }
+
+        function filtrarHistorico() {
+            let busca = document.getElementById('filtro-busca').value.trim().toLowerCase();
+            let filtrados = pedidos.filter(p => {
+                let ok = true;
+                if (busca) {
+                    let buscaData = "";
+                    if (p.data) {
+                        const d = new Date(parseDataBR(p.data));
+                        buscaData = d.toLocaleDateString('pt-BR') + " " + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+                    }
+                    let cliente = (p.cliente || "").toLowerCase();
+                    let valor = (p.valorTotal || p.valor || "").toString();
+                    let itens = (p.itens || []).map(i => i.produtoNome).join(" ").toLowerCase();
+                    if (
+                        !buscaData.includes(busca) &&
+                        !cliente.includes(busca) &&
+                        !valor.includes(busca) &&
+                        !itens.includes(busca)
+                    ) ok = false;
+                }
+                return ok;
+            });
+
+            let html = `<table class="historico-tabela">
+                <thead>
+                    <tr>
+                        <th>Tipo</th>
+                        <th>Data</th>
+                        <th>Hora</th>
+                        <th>Cliente/Descrição</th>
+                        <th>Produtos</th>
+                        <th>Valor</th>
+                        <th>Pagamento</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+            filtrados.forEach(p => {
+                let d = p.data ? new Date(parseDataBR(p.data)) : null;
+                let dataStr = d ? d.toLocaleDateString('pt-BR') : "-";
+                let horaStr = d ? d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : "-";
+                let produtos = (p.itens || []).map(i => `${i.produtoNome} (x${i.quantidade})`).join(", ");
+                html += `<tr>
+                    <td>${p.tipo || "Venda"}</td>
+                    <td>${dataStr}</td>
+                    <td>${horaStr}</td>
+                    <td>${p.cliente || p.descricao || "-"}</td>
+                    <td>${produtos || "-"}</td>
+                    <td>R$ ${Number(p.valorTotal || p.valor).toFixed(2)}</td>
+                    <td>${p.tipoPagamento ? p.tipoPagamento.charAt(0).toUpperCase() + p.tipoPagamento.slice(1) : "-"}</td>
+                    <td>
+                        <button class="btn-editar-historico" data-key="${p.key || ""}" style="background:#ffe600;color:#a97c50;border:none;border-radius:6px;padding:0.2rem 0.7rem;cursor:pointer;">Editar</button>
+                        <button class="btn-excluir-historico" data-key="${p.key || ""}" style="background:#a02020;color:#fff;border:none;border-radius:6px;padding:0.2rem 0.7rem;cursor:pointer;">Excluir</button>
+                    </td>
+                </tr>`;
+            });
+
+            saidas.forEach(s => {
+                let d = s.data ? new Date(parseDataBR(s.data)) : null;
+                let dataStr = d ? d.toLocaleDateString('pt-BR') : "-";
+                let horaStr = d ? d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : "-";
+                html += `<tr>
+                    <td>Saída</td>
+                    <td>${dataStr}</td>
+                    <td>${horaStr}</td>
+                    <td>${s.descricao || "-"}</td>
+                    <td>-</td>
+                    <td>R$ ${Number(s.valor).toFixed(2)}</td>
+                    <td>-</td>
+                    <td></td>
+                </tr>`;
+            });
+
+            html += "</tbody></table>";
+            document.getElementById('lista-historico').innerHTML = html;
+
+            document.querySelectorAll('.btn-excluir-historico').forEach(btn => {
+                btn.onclick = function() {
+                    const key = this.getAttribute('data-key');
+                    if (confirm("Deseja excluir esta venda do histórico?")) {
+                        db.ref('pedidos/' + key).remove().then(() => {
+                            pedidos = pedidos.filter(p => p.key !== key);
+                            filtrarHistorico();
+                        });
+                    }
+                };
+            });
+
+            document.querySelectorAll('.btn-editar-historico').forEach(btn => {
+                btn.onclick = function() {
+                    const key = this.getAttribute('data-key');
+                    const pedido = pedidos.find(p => p.key === key);
+                    if (!pedido) return;
+                    const novoValor = prompt("Novo valor da venda:", pedido.valorTotal);
+                    if (novoValor === null) return;
+                    const valor = parseFloat(novoValor.replace(",", "."));
+                    if (isNaN(valor) || valor <= 0) {
+                        alert("Valor inválido!");
+                        return;
+                    }
+                    const novoTipo = prompt("Novo tipo de pagamento (dinheiro, cartao, pix):", pedido.tipoPagamento || "");
+                    if (!["dinheiro", "cartao", "pix"].includes(novoTipo)) {
+                        alert("Tipo de pagamento inválido!");
+                        return;
+                    }
+                    db.ref('pedidos/' + key).update({
+                        valorTotal: valor,
+                        tipoPagamento: novoTipo
+                    }).then(() => {
+                        pedido.valorTotal = valor;
+                        pedido.tipoPagamento = novoTipo;
+                        filtrarHistorico();
+                    });
+                };
+            });
+
+            if (mesesDisponiveis.length && anosDisponiveis.length) {
+                document.getElementById('balanco-mes').value = Math.max(...mesesDisponiveis);
+                document.getElementById('balanco-ano').value = Math.max(...anosDisponiveis);
+                filtrarBalanco();
+            }
+            filtrarComparativo();
+            filtrarDiasFortes();
+        }
+
+        function filtrarBalanco() {
+            let mes = parseInt(document.getElementById('balanco-mes').value);
+            let ano = parseInt(document.getElementById('balanco-ano').value);
+            let pedidosFiltrados = pedidos.filter(p => {
+                let d = p.data ? new Date(parseDataBR(p.data)) : null;
+                return d && d.getMonth() + 1 === mes && d.getFullYear() === ano;
+            });
+            let totalDinheiro = 0, totalCartao = 0, totalPix = 0, totalReceita = 0;
+            pedidosFiltrados.forEach(p => {
+                if (p.tipoPagamento === "dinheiro") totalDinheiro += Number(p.valorTotal || p.valor);
+                if (p.tipoPagamento === "cartao") totalCartao += Number(p.valorTotal || p.valor);
+                if (p.tipoPagamento === "pix") totalPix += Number(p.valorTotal || p.valor);
+                totalReceita += Number(p.valorTotal || p.valor);
+            });
+            let totalSaidas = saidas.filter(s => {
+                let d = s.data ? new Date(parseDataBR(s.data)) : null;
+                return d && d.getMonth() + 1 === mes && d.getFullYear() === ano;
+            }).reduce((sum, s) => sum + Number(s.valor || 0), 0);
+            let lucroLiquido = totalReceita - totalSaidas;
+            document.getElementById('balanco-consolidado').innerHTML = `
+                <div><strong>Receita Total:</strong> R$ ${totalReceita.toFixed(2)}</div>
+                <div><strong>Dinheiro:</strong> R$ ${totalDinheiro.toFixed(2)}</div>
+                <div><strong>Cartão:</strong> R$ ${totalCartao.toFixed(2)}</div>
+                <div><strong>Pix:</strong> R$ ${totalPix.toFixed(2)}</div>
+                <div><strong>Custos/Saídas:</strong> R$ ${totalSaidas.toFixed(2)}</div>
+                <div><strong>Lucro Líquido:</strong> R$ ${lucroLiquido.toFixed(2)}</div>
+            `;
+
+            let ctxBalanco = document.getElementById('grafico-balanco').getContext('2d');
+            let labelsBalanco = ["Receita Total", "Dinheiro", "Cartão", "Pix", "Custos/Saídas", "Lucro Líquido"];
+            let dadosBalanco = [totalReceita, totalDinheiro, totalCartao, totalPix, totalSaidas, lucroLiquido];
+            if (window.graficoBalanco) {
+                window.graficoBalanco.destroy();
+                window.graficoBalanco = null;
+            }
+            window.graficoBalanco = new Chart(ctxBalanco, {
+                type: 'bar',
+                data: {
+                    labels: labelsBalanco,
+                    datasets: [{
+                        label: 'Valores em R$',
+                        data: dadosBalanco,
+                        backgroundColor: [
+                            '#43ea4c',
+                            '#ffa726',
+                            '#66bb6a',
+                            '#ef5350',
+                            '#29b6f6',
+                            '#ab47bc'
+                        ],
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(tooltipItem) {
+                                    return `${tooltipItem.label}: R$ ${tooltipItem.raw.toFixed(2)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toString().replace(".", ",");
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function filtrarComparativo() {
+            let periodo1 = document.getElementById('comp-periodo1').value;
+            let periodo2 = document.getElementById('comp-periodo2').value;
+            if (!periodo1 || !periodo2) {
+                document.getElementById('comparativos').innerHTML = "<div>Selecione dois períodos para comparar.</div>";
+                return;
+            }
+            let [ano1, mes1] = periodo1.split('-').map(Number);
+            let [ano2, mes2] = periodo2.split('-').map(Number);
+            let total1 = pedidos.filter(p => {
+                let d = p.data ? new Date(parseDataBR(p.data)) : null;
+                return d && d.getMonth() + 1 === mes1 && d.getFullYear() === ano1;
+            }).reduce((sum, p) => sum + Number(p.valorTotal || p.valor), 0);
+            let total2 = pedidos.filter(p => {
+                let d = p.data ? new Date(parseDataBR(p.data)) : null;
+                return d && d.getMonth() + 1 === mes2 && d.getFullYear() === ano2;
+            }).reduce((sum, p) => sum + Number(p.valorTotal || p.valor), 0);
+            let diff = total2 - total1;
+            let perc = total1 > 0 ? (diff / total1 * 100) : 0;
+            document.getElementById('comparativos').innerHTML = `
+                <div><strong>${("0"+mes1).slice(-2)}/${ano1}:</strong> R$ ${total1.toFixed(2)}</div>
+                <div><strong>${("0"+mes2).slice(-2)}/${ano2}:</strong> R$ ${total2.toFixed(2)}</div>
+                <div><strong>Variação:</strong> ${diff >= 0 ? "+" : ""}${diff.toFixed(2)} (${perc.toFixed(1)}%)</div>
+            `;
+
+            let ctxComparativo = document.getElementById('grafico-comparativo').getContext('2d');
+            let labelsComparativo = [`${("0"+mes1).slice(-2)}/${ano1}`, `${("0"+mes2).slice(-2)}/${ano2}`];
+            let dadosComparativo = [total1, total2];
+            if (window.graficoComparativo) {
+                window.graficoComparativo.destroy();
+                window.graficoComparativo = null;
+            }
+            window.graficoComparativo = new Chart(ctxComparativo, {
+                type: 'line',
+                data: {
+                    labels: labelsComparativo,
+                    datasets: [{
+                        label: 'Comparativo de Vendas',
+                        data: dadosComparativo,
+                        backgroundColor: 'rgba(67, 234, 76, 0.2)',
+                        borderColor: '#43ea4c',
+                        borderWidth: 2,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(tooltipItem) {
+                                    return `${tooltipItem.label}: R$ ${tooltipItem.raw.toFixed(2)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toString().replace(".", ",");
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function filtrarDiasFortes() {
+            let inicio = document.getElementById('diasf-inicio').value;
+            let fim = document.getElementById('diasf-fim').value;
+            let dias = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+            let vendasPorDia = [0,0,0,0,0,0,0];
+            let pedidosFiltrados = pedidos.filter(p => {
+                let d = p.data ? new Date(parseDataBR(p.data)) : null;
+                if (!d) return false;
+                let dataPedido = d.toISOString().slice(0,10);
+                let ok = true;
+                if (inicio && dataPedido < inicio) ok = false;
+                if (fim && dataPedido > fim) ok = false;
+                return ok;
+            });
+            pedidosFiltrados.forEach(p => {
+                let d = p.data ? new Date(parseDataBR(p.data)) : null;
+                if (d) vendasPorDia[d.getDay()] += Number(p.valorTotal || p.valor);
+            });
+            let maxValor = Math.max(...vendasPorDia);
+            let diasFortes = vendasPorDia.map((v,i) => ({dia: dias[i], valor: v}))
+                .filter(d => d.valor === maxValor)
+                .map(d => d.dia)
+                .join(", ");
+            let comparativoDias = vendasPorDia.map((v,i) => `${dias[i]}: R$ ${v.toFixed(2)}`).join("<br>");
+            document.getElementById('dias-fortes').innerHTML = `
+                <div><strong>Mais forte:</strong> ${diasFortes || "-"}</div>
+                <div style="margin-top:0.5rem;">${comparativoDias}</div>
+            `;
+
+            let ctxDiaSemana = document.getElementById('grafico-diasemana').getContext('2d');
+            let labelsDiaSemana = dias;
+            let dadosDiaSemana = vendasPorDia;
+            if (window.graficoDiaSemana) {
+                window.graficoDiaSemana.destroy();
+                window.graficoDiaSemana = null;
+            }
+            window.graficoDiaSemana = new Chart(ctxDiaSemana, {
+                type: 'bar',
+                data: {
+                    labels: labelsDiaSemana,
+                    datasets: [{
+                        label: 'Vendas por Dia da Semana',
+                        data: dadosDiaSemana,
+                        backgroundColor: '#43ea4c',
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(tooltipItem) {
+                                    return `${tooltipItem.label}: R$ ${tooltipItem.raw.toFixed(2)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toString().replace(".", ",");
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function exportarCSV() {
+            let linhas = ["Data,Hora,Cliente,Produtos,Valor,Pagamento"];
+            pedidos.forEach(p => {
+                let d = p.data ? new Date(parseDataBR(p.data)) : null;
+                let dataStr = d ? d.toLocaleDateString('pt-BR') : "-";
+                let horaStr = d ? d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : "-";
+                let produtos = (p.itens || []).map(i => `${i.produtoNome} (x${i.quantidade})`).join(" | ");
+                let linha = [
+                    `"${dataStr}"`,
+                    `"${horaStr}"`,
+                    `"${p.cliente || "-"}"`,
+                    `"${produtos}"`,
+                    `"${Number(p.valorTotal || p.valor).toFixed(2)}"`,
+                    `"${p.tipoPagamento || "-"}"`
+                ].join(",");
+                linhas.push(linha);
+            });
+            let csv = linhas.join("\n");
+            let blob = new Blob([csv], {type: "text/csv"});
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement("a");
+            a.href = url;
+            a.download = "historico_lanchonete.csv";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        carregarDados(filtrarHistorico);
+
+        auth.onAuthStateChanged(user => {
+            if (!user) {
+                window.location.href = "login.html";
+            }
+        });
+    </script>
+</body>
+</html>

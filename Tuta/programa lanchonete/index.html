@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Redirecionando...</title>
+    <meta http-equiv="refresh" content="0;url=login.html">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        window.location.href = "login.html";
+    </script>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        /* Exemplo de CSS responsivo */
+        body {
+            font-size: 16px;
+            margin: 0;
+            padding: 0;
+        }
+
+        @media (max-width: 600px) { /* Celular */
+            body {
+                font-size: 14px;
+            }
+        }
+
+        @media (min-width: 601px) and (max-width: 1024px) { /* Tablet */
+            body {
+                font-size: 15px;
+            }
+        }
+
+        @media (min-width: 1025px) { /* Notebook/desktop */
+            body {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <p>Redirecionando para a página de login...</p>
+    <script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+</script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+    db.ref('produtos').once('value').then(snapshot => {
+        snapshot.forEach(child => {
+            let produto = child.val();
+            // Aqui você pode exibir os produtos na tela
+            console.log(produto); // Para testar se está vindo
+        });
+    });
+</script>
+</body>
+</html>
